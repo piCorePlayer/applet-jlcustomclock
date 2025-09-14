@@ -4035,7 +4035,6 @@ function _reDrawAnalog(self,screen)
 end
 
 function _getLMSInfo(self, mode, transition)
-    -- ...existing code...
     local player = appletManager:callService("getCurrentPlayer")
     local server = player and player.getSlimServer and player:getSlimServer()
     self.lmsIP, self.lmsPort = server and server.getIpPort and server:getIpPort()
@@ -4043,7 +4042,6 @@ function _getLMSInfo(self, mode, transition)
     self.lmsPort = tonumber(self.lmsPort) or 9000
     self.lmsName = server and server.getName and server:getName() or "unknown"
     self.lmsVersion = server and server.getVersion and server:getVersion() or "unknown"
-    -- ...rest of your code...
 end
 
 local function _chooseProxyExt(srcUrl)
