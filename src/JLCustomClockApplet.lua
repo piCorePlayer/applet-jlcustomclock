@@ -4062,7 +4062,7 @@ local function buildImageProxyBarePath(srcUrl)
 end
 
 
-local function buildImageProxyPath(srcUrl, w, h, clipX, clipY, clipWidth, clipHeight)
+local function buildImageProxyPath(srcUrl, w, h, clipX, clipY, clipWidth, clipHeight, lmsVersion)
     local nw = tonumber(w) or 0
     local nh = tonumber(h) or 0
 
@@ -4086,10 +4086,11 @@ local function buildImageProxyPath(srcUrl, w, h, clipX, clipY, clipWidth, clipHe
     end
 
     -- If neither width nor height is set, use /image (original)
+    local path
     if nw == 0 and nh == 0 then
         log:debug("buildImageProxyPath: srcUrl=" .. tostring(urlWithBucket) .. " w=" .. tostring(w) .. " h=" ..
                       tostring(h) .. " mode=nil (no resize)")
-        return "/imageproxy/" .. string.urlEncode(urlWithBucket) .. "/image"
+        path = "/imageproxy/" .. string.urlEncode(urlWithBucket) .. "/image"
     else
         local ext = _chooseProxyExt and _chooseProxyExt(srcUrl) or "jpg"
         local suffix = "/image_" .. tostring(nw) .. "x" .. tostring(nh)
@@ -4098,8 +4099,25 @@ local function buildImageProxyPath(srcUrl, w, h, clipX, clipY, clipWidth, clipHe
         end
         log:debug("buildImageProxyPath: srcUrl=" .. tostring(urlWithBucket) .. " w=" .. tostring(w) .. " h=" ..
                       tostring(h) .. " mode=" .. tostring(mode) .. " ext=" .. tostring(ext))
-        return "/imageproxy/" .. string.urlEncode(urlWithBucket) .. suffix .. "." .. ext
+        path = "/imageproxy/" .. string.urlEncode(urlWithBucket) .. suffix .. "." .. ext
     end
+
+    -- Add nocache for LMS >= 9.1.0
+    if lmsVersion then
+        local major, minor, patch = tostring(lmsVersion):match("^(%d+)%.(%d+)%.?(%d*)")
+        major = tonumber(major)
+        minor = tonumber(minor)
+        patch = tonumber(patch) or 0
+        if major and minor and (major > 9 or (major == 9 and (minor > 1 or (minor == 1 and patch >= 0)))) then
+            if path:find("%?") then
+                path = path .. "&nocache"
+            else
+                path = path .. "?nocache"
+            end
+        end
+    end
+
+    return path
 end
 
 
@@ -4150,7 +4168,7 @@ function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX
                 		url,
                 		(nw and nw > 0) and width  or nil,
                 		(nh and nh > 0) and height or nil,
-                		clipX, clipY, clipWidth, clipHeight)
+                		clipX, clipY, clipWidth, clipHeight, lmsVersion)
 			log:debug("LMS IP: " .. tostring(lmsIP))
 			log:debug("LMS Port: " .. tostring(lmsPort))
 			log:debug("LMS Name: " .. tostring(lmsName))
