@@ -4170,6 +4170,8 @@ function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX
             		lmsPort = tonumber(lmsPort) or 9000
             		imagehost  = lmsip
             		imageport  = lmsPort
+					lmsname = lmsName or "unknown"
+					lmsVersion = lmsVersion or "unknown"
             		imagepath = _buildImageProxyPath(
                 		url,
                 		(nw and nw > 0) and width  or nil,
