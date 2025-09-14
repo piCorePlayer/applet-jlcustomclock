@@ -4033,6 +4033,18 @@ function _reDrawAnalog(self,screen)
 	end
 end
 
+function _getLMSInfo(self, mode, transition)
+    -- ...existing code...
+    local player = appletManager:callService("getCurrentPlayer")
+    local server = player and player.getSlimServer and player:getSlimServer()
+    self.lmsIP, self.lmsPort = server and server.getIpPort and server:getIpPort()
+    self.lmsIP = self.lmsIP or "127.0.0.1"
+    self.lmsPort = tonumber(self.lmsPort) or 9000
+    self.lmsName = server and server.getName and server:getName() or "unknown"
+    self.lmsVersion = server and server.getVersion and server:getVersion() or "unknown"
+    -- ...rest of your code...
+end
+
 local function _chooseProxyExt(srcUrl)
     local u = (srcUrl or ""):lower()
     log:debug("_chooseProxyExt: srcUrl=" .. tostring(srcUrl))
@@ -4057,12 +4069,12 @@ local function _chooseProxyExt(srcUrl)
     return "jpg"
 end
 
-local function buildImageProxyBarePath(srcUrl)
+local function _buildImageProxyBarePath(srcUrl)
   return "/imageproxy/" .. string.urlEncode(srcUrl) .. "/image"
 end
 
 
-local function buildImageProxyPath(srcUrl, w, h, clipX, clipY, clipWidth, clipHeight, lmsVersion)
+local function _buildImageProxyPath(srcUrl, w, h, clipX, clipY, clipWidth, clipHeight, lmsVersion)
     local nw = tonumber(w) or 0
     local nh = tonumber(h) or 0
 
@@ -4154,17 +4166,11 @@ function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX
         	local isLMSProxy = (tostring(allowProxy or "false") == "true")
         	local useLMSProxy = isHttps or (isHttp and hasAnySize and isLMSProxy)
         	if useLMSProxy then
-            		local lmsPlayer = appletManager:callService("getCurrentPlayer")
-            		local lmsServer = lmsPlayer and lmsPlayer.getSlimServer and lmsPlayer:getSlimServer()
-            		local lmsIP, lmsPort = lmsServer and lmsServer.getIpPort and lmsServer:getIpPort()
-			local lmsName = lmsServer and lmsServer.getName and lmsServer:getName() or "unknown"
-			local lmsVersion = lmsServer and lmsServer.getVersion and lmsServer:getVersion() or "unknown"
-
             		lmsip = lmsIP or "127.0.0.1"
             		lmsPort = tonumber(lmsPort) or 9000
             		imagehost  = lmsip
             		imageport  = lmsPort
-            		imagepath = buildImageProxyPath(
+            		imagepath = _buildImageProxyPath(
                 		url,
                 		(nw and nw > 0) and width  or nil,
                 		(nh and nh > 0) and height or nil,
