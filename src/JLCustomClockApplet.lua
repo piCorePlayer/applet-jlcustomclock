@@ -4039,8 +4039,7 @@ local function _chooseProxyExt(srcUrl)
 
     -- Supported extensions by LMS proxy
     local validExt = {
-        png = true, jpg = true, jpeg = true, gif = true, bmp = true,
-        webp = true, svg = true, ico = true
+        png = true, jpg = true, jpeg = true, gif = true, svg = true
     }
 
     -- Try to extract from the last filename in the path
