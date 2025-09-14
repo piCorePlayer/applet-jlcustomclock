@@ -343,6 +343,7 @@ function openScreensaver(self,mode, transition)
 	local player = appletManager:callService("getCurrentPlayer")
 	local oldMode = self.mode
 	self.mode = mode
+	self:_getLMSInfo(mode, transition)
 	local licensed = true
 	if ((oldMode and self.mode != oldMode) or self.licensed~=licensed) and self.window then
 		self.window:hide()
