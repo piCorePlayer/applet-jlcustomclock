@@ -4172,7 +4172,7 @@ function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX
         	local isLMSProxy = (tostring(allowProxy or "false") == "true")
         	local useLMSProxy = isHttps or (isHttp and hasAnySize and isLMSProxy)
         	if useLMSProxy then
-            		imagehost  = lmsip
+            		imagehost  = lmsIP
             		imageport  = lmsPort
             		imagepath = _buildImageProxyPath(
                 		url,
