@@ -4103,28 +4103,6 @@ local function buildImageProxyPath(srcUrl, w, h, clipX, clipY, clipWidth, clipHe
 end
 
 
-local function _getLMSHostPort()
-    local player = appletManager and
-                       (appletManager:callService("getCurrentPlayer") or appletManager:callService("getSelectedPlayer") or
-                           appletManager:callService("getActivePlayer"))
-    if player and player.getSlimServer then
-        local server = player:getSlimServer()
-        if server and server.getIpPort then
-            local a, b = server:getIpPort()
-            if type(a) == "string" and not b then
-                local ip, port = a:match("^([^:]+):(%d+)$")
-                if ip and port then
-                    return ip, tonumber(port)
-                end
-            elseif a and b then
-                return a, tonumber(b)
-            end
-        end
-    end
-    return "127.0.0.1", 9000
-end
-
-
 function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX,clipY,clipWidth,clipHeight)
 	local imagehost = ""
 	local imageport = tonumber("80")
@@ -4150,22 +4128,35 @@ function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX
 
 	if imagepath != "" and imagehost != "" then
 
-    		-- Decide proxy usage FIRST (HTTPS short-circuits to LMS)
-    		local isHttp    = (string.find(url, "^http://") ~= nil)
-    		local isHttps   = (string.find(url, "^https://") ~= nil)
-    		local nw, nh    = tonumber(width), tonumber(height)
-		local hasAnySize = (nw and nw > 0) or (nh and nh > 0)
-		local isLMSProxy = (tostring(allowProxy or "false") == "true")
-    		local useLMSProxy = isHttps or (isHttp and hasAnySize and isLMSProxy)
-    		if useLMSProxy then
-			local lmsHost, lmsPort = _getLMSHostPort()
-    			imagehost  = lmsHost
-    			imageport  = tonumber(lmsPort)
-			imagepath = buildImageProxyPath(
-    			url,
-    			(nw and nw > 0) and width  or nil,
-    			(nh and nh > 0) and height or nil,
-    			clipX, clipY, clipWidth, clipHeight)		
+        	-- Decide proxy usage FIRST (HTTPS short-circuits to LMS)
+        	local isHttp    = (string.find(url, "^http://") ~= nil)
+        	local isHttps   = (string.find(url, "^https://") ~= nil)
+        	local nw, nh    = tonumber(width), tonumber(height)
+        	local hasAnySize = (nw and nw > 0) or (nh and nh > 0)
+        	local isLMSProxy = (tostring(allowProxy or "false") == "true")
+        	local useLMSProxy = isHttps or (isHttp and hasAnySize and isLMSProxy)
+        	local lmsVersion = "unknown"
+        	if useLMSProxy then
+            		local player = appletManager:callService("getCurrentPlayer")
+            		local server = player and player.getSlimServer and player:getSlimServer()
+            		local lmsIP, lmsPort = server and server.getIpPort and server:getIpPort()
+			local lmsName = server and server.getName and server:getName() or "unknown"
+            		lmsip = lmsIP or "127.0.0.1"
+            		lmsPort = tonumber(lmsPort) or 9000
+            		imagehost  = lmsIP
+            		imageport  = lmsPort
+            		imagepath = buildImageProxyPath(
+                		url,
+                		(nw and nw > 0) and width  or nil,
+                		(nh and nh > 0) and height or nil,
+                		clipX, clipY, clipWidth, clipHeight)
+            		if server and server.getVersion then
+                		lmsVersion = server:getVersion()
+			end
+			log:debug("LMS version: " .. tostring(lmsVersion))
+			log:debug("LMS IP: " .. tostring(lmsip))
+			log:debug("LMS Port: " .. tostring(lmsPort))
+			log:debug("LMS Name: " .. tostring(lmsName))
     		else
 			-- use direct URL
     		end
