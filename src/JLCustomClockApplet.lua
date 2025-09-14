@@ -4172,8 +4172,8 @@ function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX
         	local isLMSProxy = (tostring(allowProxy or "false") == "true")
         	local useLMSProxy = isHttps or (isHttp and hasAnySize and isLMSProxy)
         	if useLMSProxy then
-            		lmsip = lmsIP or "127.0.0.1"
-            		lmsPort = tonumber(lmsPort) or 9000
+            		lmsip = lmsIP
+            		lmsPort = lmsPort
             		imagehost  = lmsip
             		imageport  = lmsPort
 					lmsname = lmsName
