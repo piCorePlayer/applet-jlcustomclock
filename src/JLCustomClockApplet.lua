@@ -4139,6 +4139,11 @@ function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX
 	local imageport = tonumber("80")
 	local imagepath = ""
 
+	local lmsIP = self.lmsIP or "127.0.0.1"
+	local lmsPort = tonumber(self.lmsPort) or 9000
+	local lmsName = self.lmsName or "unknown"
+	local lmsVersion = self.lmsVersion or "unknown"
+
 
 	if not _getString(url,nil) then
 		return
