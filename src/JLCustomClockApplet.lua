@@ -4058,7 +4058,7 @@ local function _chooseProxyExt(srcUrl)
 
     -- Supported extensions by LMS proxy
     local validExt = {
-        png = true, jpg = true, jpeg = true, gif = true, svg = true
+        png = true, jpg = true, jpeg = true -- for now we only support png,jpg and jpeg
     }
 
     -- Try to extract from the last filename in the path
@@ -4107,7 +4107,7 @@ local function _buildImageProxyPath(srcUrl, w, h, clipX, clipY, clipWidth, clipH
                       tostring(h) .. " mode=nil (no resize)")
         proxypath = "/imageproxy/" .. string.urlEncode(urlWithBucket) .. "/image"
     else
-        local ext = _chooseProxyExt and _chooseProxyExt(srcUrl) or "jpg"
+        local ext = _chooseProxyExt and _chooseProxyExt(srcUrl)
         local suffix = "/image_" .. tostring(nw) .. "x" .. tostring(nh)
         if mode then
             suffix = suffix .. "_" .. mode
