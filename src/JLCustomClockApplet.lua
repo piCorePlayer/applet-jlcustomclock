@@ -1515,8 +1515,11 @@ function _getAppletDir()
 end
 
 function _getLuaDir()
+	-- Try known locations first (Jivelite on piCorePlayer, then classic SqueezePlay)
 	local luadir = nil
-	if lfs.attributes("/usr/share/jive/applets") ~= nil then
+	if lfs.attributes("/opt/jivelite/share/jive/applets") ~= nil  then
+		luadir = "/opt/jivelite/share/jive/"
+	elseif lfs.attributes("/usr/share/jive/applets") ~= nil  then
 		luadir = "/usr/share/jive/"
 	else
 		-- find the main lua directory
@@ -1528,14 +1531,19 @@ function _getLuaDir()
 			end
 		end
 	end
+
 	if luadir then
-		log:debug("Lua dir is: "..luadir)
+		if log and log.debug then log:debug("Lua dir is: " .. luadir) end
+		return luadir
 	else
-		log:error("Can't locate lua \"share\" directory")
-		luadir = "./"
+		-- Last-resort sensible default for Jivelite
+		if log and log.error then
+			log:error("Can't locate lua \"share\" directory — defaulting to /opt/jivelite/share/jive/")
+		end
+		return "/opt/jivelite/share/jive/"
 	end
-	return luadir
 end
+
 
 function _retrieveFont(self,fonturl,fontfile,fontSize)
 	if fonturl and string.find(fonturl,"^http") then
