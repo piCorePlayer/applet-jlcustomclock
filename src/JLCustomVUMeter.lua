@@ -8,13 +8,10 @@ local Timer         = require("jive.ui.Timer")
 local Widget        = require("jive.ui.Widget")
 
 local string           = require("jive.utils.string")
-
---local decode        = require("squeezeplay.decode")
-local vis           = require("jive.vis")
-
+local vis        = require("jive.vis")
 
 local debug         = require("jive.utils.debug")
-local log           = require("jive.utils.log").logger("applet.CustomClock")
+local log           = require("jive.utils.log").logger("jivelite.vis")
 
 local FRAME_RATE    = jive.ui.FRAME_RATE
 
@@ -87,8 +84,7 @@ function draw(self, surface)
 			self.images["background"]:blit(surface, self:getBounds())
 		end
 
-	-- local sampleAcc = decode:vumeter()
-	local sampleAcc = vis:vumeter()
+		local sampleAcc = vis:vumeter()
 		-- Uncomment to simulate in SqueezePlay
 		-- sampleAcc = {}
 		-- sampleAcc[1] = math.random(3227)

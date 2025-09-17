@@ -49,11 +49,8 @@ local RadioGroup       = require("jive.ui.RadioGroup")
 local RadioButton      = require("jive.ui.RadioButton")
 local Timer            = require("jive.ui.Timer")
 
--- TEC 
--- Looks like CustomVUMeter and CustomSpectrumMeter require "squeezeplay.decode"
---    Since squeezelite/jivelite not same, may have to find equivalent? Is there a "squeezelite.decode"?
--- TEC1 local CustomVUMeter    = require("applets.CustomClock.CustomVUMeter")
--- TEC1 local CustomSpectrumMeter    = require("applets.CustomClock.CustomSpectrumMeter")
+local CustomVUMeter    = require("applets.JLCustomClock.JLCustomVUMeter")
+local CustomSpectrumMeter    = require("applets.JLCustomClock.JLCustomSpectrumMeter")
 
 local SocketHttp       = require("jive.net.SocketHttp")
 local RequestHttp      = require("jive.net.RequestHttp")
@@ -602,22 +599,22 @@ function openScreensaver(self,mode, transition)
 				}
 				self.items[no] = Group("item"..no,childItems)
 				self.window:addWidget(self.items[no])
--- TEC1			elseif string.find(item.itemtype,"digitalvumeter$") then
--- TEC1				local childItems = {
--- TEC1					itemno = CustomVUMeter("item"..no,"digital",_getString(item.channels,nil))
--- TEC1				}
--- TEC1				self.items[no] = Group("item"..no,childItems)
--- TEC1				self.window:addWidget(self.items[no])
--- TEC1			elseif string.find(item.itemtype,"analogvumeter$") then
--- TEC1				local childItems = {
--- TEC1					itemno = CustomVUMeter("item"..no,"analog",_getString(item.channels,nil))
--- TEC1				}
--- TEC1				self.items[no] = Group("item"..no,childItems)
--- TEC1				self.window:addWidget(self.items[no])
--- TEC1			elseif string.find(item.itemtype,"spectrummeter$") then
--- TEC1				local childItems = {
--- TEC1					itemno = CustomSpectrumMeter("item"..no,_getString(item.channels,nil))
--- TEC1				}
+			elseif string.find(item.itemtype,"digitalvumeter$") then
+				local childItems = {
+					itemno = CustomVUMeter("item"..no,"digital",_getString(item.channels,nil))
+				}
+				self.items[no] = Group("item"..no,childItems)
+				self.window:addWidget(self.items[no])
+			elseif string.find(item.itemtype,"analogvumeter$") then
+				local childItems = {
+					itemno = CustomVUMeter("item"..no,"analog",_getString(item.channels,nil))
+				}
+				self.items[no] = Group("item"..no,childItems)
+				self.window:addWidget(self.items[no])
+			elseif string.find(item.itemtype,"spectrummeter$") then
+				local childItems = {
+					itemno = CustomSpectrumMeter("item"..no,_getString(item.channels,nil))
+				}
 				for attr,value in pairs(item) do
 					if string.find(attr,"color$") and _getString(value,nil) then
 						local color = string.gsub(attr,"color$","")

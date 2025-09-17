@@ -10,10 +10,10 @@ local Timer         = require("jive.ui.Timer")
 local Widget        = require("jive.ui.Widget")
 
 local string           = require("jive.utils.string")
-local decode        = require("squeezeplay.decode")
+local vis        = require("jive.vis")
 
 local debug         = require("jive.utils.debug")
-local log           = require("jive.utils.log").logger("audio.decode")
+local log           = require("jive.utils.log").logger("jivelite.vis")
 
 local FRAME_RATE    = jive.ui.FRAME_RATE
 
@@ -104,7 +104,7 @@ function _layout(self)
 
 	local numBars = {}
 
-	numBars = decode:spectrum_init(
+	numBars = vis:spectrum_init(
 		self.isMono,
 
 		self.channelWidth,
@@ -151,7 +151,7 @@ function draw(self, surface)
 
 	local bins = { {}, {}}
 
-	bins[1], bins[2] = decode:spectrum()
+	bins[1], bins[2] = vis:spectrum()
 
 	if string.find(self.channels,'^left') or self.channels == "mono" then
 		_drawBins(
