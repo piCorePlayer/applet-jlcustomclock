@@ -49,8 +49,9 @@ local RadioGroup       = require("jive.ui.RadioGroup")
 local RadioButton      = require("jive.ui.RadioButton")
 local Timer            = require("jive.ui.Timer")
 
-local CustomVUMeter    = require("applets.JLCustomClock.JLCustomVUMeter")
-local CustomSpectrumMeter    = require("applets.JLCustomClock.JLCustomSpectrumMeter")
+local hasVisVUMeter, CustomVUMeter = pcall(require, "applets.JLCustomClock.JLCustomVUMeter")
+local hasVisSpectrumMeter, CustomSpectrumMeter = pcall(require, "applets.JLCustomClock.JLCustomSpectrumMeter")
+local hasVisSupport = hasVisVUMeter and hasVisSpectrumMeter and CustomVUMeter and CustomSpectrumMeter
 
 local SocketHttp       = require("jive.net.SocketHttp")
 local RequestHttp      = require("jive.net.RequestHttp")
@@ -599,19 +600,19 @@ function openScreensaver(self,mode, transition)
 				}
 				self.items[no] = Group("item"..no,childItems)
 				self.window:addWidget(self.items[no])
-			elseif string.find(item.itemtype,"digitalvumeter$") then
+			elseif hasVisSupport and string.find(item.itemtype,"digitalvumeter$") then
 				local childItems = {
 					itemno = CustomVUMeter("item"..no,"digital",_getString(item.channels,nil))
 				}
 				self.items[no] = Group("item"..no,childItems)
 				self.window:addWidget(self.items[no])
-			elseif string.find(item.itemtype,"analogvumeter$") then
+			elseif hasVisSupport and string.find(item.itemtype,"analogvumeter$") then
 				local childItems = {
 					itemno = CustomVUMeter("item"..no,"analog",_getString(item.channels,nil))
 				}
 				self.items[no] = Group("item"..no,childItems)
 				self.window:addWidget(self.items[no])
-			elseif string.find(item.itemtype,"spectrummeter$") then
+			elseif hasVisSupport and string.find(item.itemtype,"spectrummeter$") then
 				local childItems = {
 					itemno = CustomSpectrumMeter("item"..no,_getString(item.channels,nil))
 				}

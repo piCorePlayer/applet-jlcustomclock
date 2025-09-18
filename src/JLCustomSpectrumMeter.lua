@@ -15,6 +15,22 @@ local vis        = require("jive.vis")
 local debug         = require("jive.utils.debug")
 local log           = require("jive.utils.log").logger("jivelite.vis")
 
+-- VIS is optional. If not present, export a harmless stub widget so the applet still loads.
+local _ok_vis, vis = pcall(require, "jive.vis")
+if not _ok_vis or not vis then
+    local JLNullVis = oo.class({}, Widget)
+    function JLNullVis:__init(name, mode, channels)
+        local o = Widget.__init(self, name)
+        o.mode = mode
+        o.channels = channels
+        return oo.rawnew(self, o)
+    end
+    function JLNullVis:layout() end
+    function JLNullVis:draw(surface) end
+    -- Export a constructor compatible with callers: JLNullVis("itemX", "analog|digital", "left|right|mono")
+    return function(name, mode, channels) return JLNullVis(name, mode, channels) end
+end
+
 local FRAME_RATE    = jive.ui.FRAME_RATE
 
 
