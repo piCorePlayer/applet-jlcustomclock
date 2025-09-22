@@ -1491,7 +1491,9 @@ end
 
 function _getAppletDir()
 	local appletdir = nil
-	if lfs.attributes("/usr/share/jive/applets") ~= nil then
+	if lfs.attributes("/home/tc/.jivelite/userpath-vis/applets") ~= nil then
+		appletdir = "/home/tc/.jivelite/userpath-vis/applets/"
+	elseif lfs.attributes("/usr/share/jive/applets") ~= nil then
 		appletdir = "/usr/share/jive/applets/"
 	else
 		-- find the applet directory
@@ -1513,11 +1515,10 @@ function _getAppletDir()
 end
 
 function _getLuaDir()
-	-- Try known locations first (Jivelite on piCorePlayer, then classic SqueezePlay)
 	local luadir = nil
-	if lfs.attributes("/opt/jivelite/share/jive/applets") ~= nil  then
+	if lfs.attributes("/opt/jivelite/share/jive/applets") ~= nil then
 		luadir = "/opt/jivelite/share/jive/"
-	elseif lfs.attributes("/usr/share/jive/applets") ~= nil  then
+	elseif lfs.attributes("/usr/share/jive/applets") ~= nil then
 		luadir = "/usr/share/jive/"
 	else
 		-- find the main lua directory
@@ -1529,17 +1530,13 @@ function _getLuaDir()
 			end
 		end
 	end
-
 	if luadir then
-		if log and log.debug then log:debug("Lua dir is: " .. luadir) end
-		return luadir
+		log:debug("Lua dir is: "..luadir)
 	else
-		-- Last-resort sensible default for Jivelite
-		if log and log.error then
-			log:error("Can't locate lua \"share\" directory — defaulting to /opt/jivelite/share/jive/")
-		end
-		return "/opt/jivelite/share/jive/"
+		log:error("Can't locate lua \"share\" directory")
+		luadir = "./"
 	end
+	return luadir
 end
 
 
