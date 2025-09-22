@@ -61,13 +61,17 @@ function setImage(self, id, image)
 		self.images = {}
 	end
 	self.images[id] = image
+-- If we just replaced the analog background, force a relayout
+    if id == "background" then -- and self.mode == "analog" then <-- TODO check if we need this
+        self:reLayout()
+    end
 end
 
 function _layout(self)
 	local x,y,w,h = self:getBounds()
 	local l,t,r,b = self:getPadding()
-	-- When used in NP screen _layout gets called with strange values
-	if (w <= 0 or w > 480) and (h <= 0 or h > 272) then
+    -- Allow any resolution; only bail on invalid sizes
+    if w <= 0 or h <= 0 then
 		return
 	end
 
@@ -89,6 +93,20 @@ function _layout(self)
 		self.y = y
 		self.w = w / 2
 		self.h = h
+		
+        -- Scale analog background every layout pass to fit region
+        if self.images and self.images["background"] then
+            local img = self.images["background"]
+            local srcW, srcH = img:getSize()
+            local frameW = srcW / 25
+            local sX = self.w / frameW
+            local sY = self.h / srcH
+            local s  = math.min(sX, sY)
+            if math.abs(s - 1.0) > 0.01 then
+                if s < 0.01 then s = 0.01 end
+                self.images["background"] = img:rotozoom(0, s, true)
+            end
+        end
 	end
 end
 
@@ -152,31 +170,56 @@ function _drawMeter(self, surface, sampleAcc, ch, x, y, w, h)
 	if self.mode == "digital" and self.images ~= nil and self.bars and self.images["tickon"] then
 		local tw,th = self.images["tickon"]:getSize()
 
-		local it = nil
-		local last = true
-		for i = 1, self.bars do
-			it = i*272/self.h
-			if it >= self.cap[ch] and last and self.images["tickcap"] ~= nil then
+		-- ── NEW: row-based drawing (no magic 272), normalized to self.bars ──
+		local maxBars = math.floor(self.h / th)
+		if maxBars < 1 then return end
+
+		-- Map current value and cap to BAR units (0..maxBars)
+		local maxMapUnits = (#RMS_MAP - 1) / 2    -- matches the existing "val = floor(val/2)"
+		local function unitsToBars(u)
+			if maxMapUnits <= 0 then return 0 end
+			local b = math.floor((u / maxMapUnits) * maxBars + 0.5)
+			if b < 0 then b = 0 elseif b > maxBars then b = maxBars end
+			return b
+		end
+		local valBars = unitsToBars(val)
+
+		-- Keep a DIGITAL-only cap in bar units (does not affect analog)
+		self.capBars = self.capBars or { 0, 0 }
+		if self.capBars[ch] == nil then self.capBars[ch] = 0 end
+		local capBarsNow = unitsToBars(self.cap[ch] or 0)
+		if capBarsNow >= (self.capBars[ch] or 0) then
+			self.capBars[ch] = capBarsNow
+		else
+			self.capBars[ch] = self.capBars[ch] - 0.5
+			if self.capBars[ch] < 0 then self.capBars[ch] = 0 end
+		end
+		local capRow = math.floor(self.capBars[ch] + 0.5)  -- single row to place tickcap
+
+		-- Draw from bottom up, lighting 'valBars' rows and placing one cap
+		local drewCap = false
+		for i = 1, maxBars do
+			if (not drewCap) and (i == capRow) and self.images["tickcap"] ~= nil then
 				self.images["tickcap"]:blit(surface, x, y)
-				last = false
-			elseif it < val and self.images["tickon"] ~= nil then
+				drewCap = true
+			elseif i <= valBars and self.images["tickon"] ~= nil then
 				self.images["tickon"]:blit(surface, x, y)
 			elseif self.images["tickoff"] ~= nil then
 				self.images["tickoff"]:blit(surface, x, y)
 			end
-
 			y = y - th
 		end
 
-	elseif self.mode == "analog" and self.images ~= nil and self.images["background"] ~= nil then
-
---		local x,y,w,h = self:getBounds()
-
-		if ch == 1 then
-			self.images["background"]:blitClip(self.cap[ch] * w, y, w, h, surface, x, y)
-		else
-			self.images["background"]:blitClip(self.cap[ch] * w, y, w, h, surface, x, y)
-		end
+    elseif self.mode == "analog" and self.images and self.images["background"] then
+        -- Correctly compute frame width for 25-frame analog sprite sheet
+        local img    = self.images["background"]
+        local srcW, srcH = img:getSize()
+        local frameW = math.floor(srcW / 25)
+        local idx    = math.floor(self.cap[ch])
+        if idx >= 25 then idx = 24 end
+        if idx < 0 then idx = 0 end
+        local srcX = idx * frameW
+        img:blitClip(srcX, 0, frameW, srcH, surface, x, y)
 	end
 end
 
