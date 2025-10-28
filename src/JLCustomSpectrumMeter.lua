@@ -10,10 +10,26 @@ local Timer         = require("jive.ui.Timer")
 local Widget        = require("jive.ui.Widget")
 
 local string           = require("jive.utils.string")
-local decode        = require("squeezeplay.decode")
+local vis        = require("jive.vis")
 
 local debug         = require("jive.utils.debug")
-local log           = require("jive.utils.log").logger("audio.decode")
+local log           = require("jive.utils.log").logger("jivelite.vis")
+
+-- VIS is optional. If not present, export a harmless stub widget so the applet still loads.
+local _ok_vis, vis = pcall(require, "jive.vis")
+if not _ok_vis or not vis then
+    local JLNullVis = oo.class({}, Widget)
+    function JLNullVis:__init(name, mode, channels)
+        local o = Widget.__init(self, name)
+        o.mode = mode
+        o.channels = channels
+        return oo.rawnew(self, o)
+    end
+    function JLNullVis:layout() end
+    function JLNullVis:draw(surface) end
+    -- Export a constructor compatible with callers: JLNullVis("itemX", "analog|digital", "left|right|mono")
+    return function(name, mode, channels) return JLNullVis(name, mode, channels) end
+end
 
 local FRAME_RATE    = jive.ui.FRAME_RATE
 
@@ -61,7 +77,7 @@ function _layout(self)
 	local l,t,r,b = self:getPadding()
 
 	-- When used in NP screen _layout gets called with strange values
-	if (w <= 0 or w > 480) and (h <= 0 or h > 272) then
+	if (w <= 0 or h <= 0) then
 		return
 	end
 
@@ -104,7 +120,7 @@ function _layout(self)
 
 	local numBars = {}
 
-	numBars = decode:spectrum_init(
+	numBars = vis:spectrum_init(
 		self.isMono,
 
 		self.channelWidth,
@@ -151,7 +167,7 @@ function draw(self, surface)
 
 	local bins = { {}, {}}
 
-	bins[1], bins[2] = decode:spectrum()
+	bins[1], bins[2] = vis:spectrum()
 
 	if string.find(self.channels,'^left') or self.channels == "mono" then
 		_drawBins(

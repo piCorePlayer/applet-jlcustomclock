@@ -49,11 +49,9 @@ local RadioGroup       = require("jive.ui.RadioGroup")
 local RadioButton      = require("jive.ui.RadioButton")
 local Timer            = require("jive.ui.Timer")
 
--- TEC 
--- Looks like CustomVUMeter and CustomSpectrumMeter require "squeezeplay.decode"
---    Since squeezelite/jivelite not same, may have to find equivalent? Is there a "squeezelite.decode"?
--- TEC1 local CustomVUMeter    = require("applets.CustomClock.CustomVUMeter")
--- TEC1 local CustomSpectrumMeter    = require("applets.CustomClock.CustomSpectrumMeter")
+local hasVisVUMeter, CustomVUMeter = pcall(require, "applets.JLCustomClock.JLCustomVUMeter")
+local hasVisSpectrumMeter, CustomSpectrumMeter = pcall(require, "applets.JLCustomClock.JLCustomSpectrumMeter")
+local hasVisSupport = hasVisVUMeter and hasVisSpectrumMeter and CustomVUMeter and CustomSpectrumMeter
 
 local SocketHttp       = require("jive.net.SocketHttp")
 local RequestHttp      = require("jive.net.RequestHttp")
@@ -343,6 +341,7 @@ function openScreensaver(self,mode, transition)
 	local player = appletManager:callService("getCurrentPlayer")
 	local oldMode = self.mode
 	self.mode = mode
+	self:_getLMSInfo(mode, transition)
 	local licensed = true
 	if ((oldMode and self.mode != oldMode) or self.licensed~=licensed) and self.window then
 		self.window:hide()
@@ -544,6 +543,8 @@ function openScreensaver(self,mode, transition)
 			self.model = "touch"
 		elseif width == 320 then
 			self.model = "radio"
+		elseif width == 800 then
+			self.model = "jivelite800x480"
 		else
 			self.model = "controller"
 		end
@@ -599,22 +600,22 @@ function openScreensaver(self,mode, transition)
 				}
 				self.items[no] = Group("item"..no,childItems)
 				self.window:addWidget(self.items[no])
--- TEC1			elseif string.find(item.itemtype,"digitalvumeter$") then
--- TEC1				local childItems = {
--- TEC1					itemno = CustomVUMeter("item"..no,"digital",_getString(item.channels,nil))
--- TEC1				}
--- TEC1				self.items[no] = Group("item"..no,childItems)
--- TEC1				self.window:addWidget(self.items[no])
--- TEC1			elseif string.find(item.itemtype,"analogvumeter$") then
--- TEC1				local childItems = {
--- TEC1					itemno = CustomVUMeter("item"..no,"analog",_getString(item.channels,nil))
--- TEC1				}
--- TEC1				self.items[no] = Group("item"..no,childItems)
--- TEC1				self.window:addWidget(self.items[no])
--- TEC1			elseif string.find(item.itemtype,"spectrummeter$") then
--- TEC1				local childItems = {
--- TEC1					itemno = CustomSpectrumMeter("item"..no,_getString(item.channels,nil))
--- TEC1				}
+			elseif hasVisSupport and string.find(item.itemtype,"digitalvumeter$") then
+				local childItems = {
+					itemno = CustomVUMeter("item"..no,"digital",_getString(item.channels,nil))
+				}
+				self.items[no] = Group("item"..no,childItems)
+				self.window:addWidget(self.items[no])
+			elseif hasVisSupport and string.find(item.itemtype,"analogvumeter$") then
+				local childItems = {
+					itemno = CustomVUMeter("item"..no,"analog",_getString(item.channels,nil))
+				}
+				self.items[no] = Group("item"..no,childItems)
+				self.window:addWidget(self.items[no])
+			elseif hasVisSupport and string.find(item.itemtype,"spectrummeter$") then
+				local childItems = {
+					itemno = CustomSpectrumMeter("item"..no,_getString(item.channels,nil))
+				}
 				for attr,value in pairs(item) do
 					if string.find(attr,"color$") and _getString(value,nil) then
 						local color = string.gsub(attr,"color$","")
@@ -1060,7 +1061,7 @@ function _installCustomNowPlaying(self)
 			if item then
 				log:debug("Setting custom callback to Now Playing menu")
 				item.callback = function(event, menuItem)
-					self:goNowPlaying(Window.transitionPushLeft)
+					appletManager:callService("goNowPlaying",Window.transitionPushLeft)
 				end
 			end
 		end,
@@ -1115,7 +1116,7 @@ end
 
 function _updateCustomTitleFormatInfo(self,player)
 	local server = player:getSlimServer()
-	if server and not server:isSqueezeNetwork() then
+	if server then
 		local licensed = true
 		if not self:getSettings()['customClockHelperInstalled'] then
 			server:userRequest(function(chunk,err)
@@ -1190,7 +1191,7 @@ function defineSettingStyle(self,mode,menuItem)
 	local licensed = true
 	if player then
 		local server = player:getSlimServer()
-		if server and not server:isSqueezeNetwork() then
+		if server then
 			server:userRequest(function(chunk,err)
 					if err then
 						log:warn(err)
@@ -1306,7 +1307,7 @@ function defineSettingStyleSink(self,title,mode,data)
 	local group = RadioGroup()
 	if mode == "confignowplaying" then
 		menu:addItem({
-			text = tostring(self:string("SCREENSAVER_CUSTOMCLOCK_SETTINGS_NOWPLAYING_STYLE")).."\n(Logitech)",
+			text = tostring(self:string("SCREENSAVER_CUSTOMCLOCK_SETTINGS_NOWPLAYING_STYLE")).."\n(Lyrion Music Server)",
 			style = 'item_no_icon',
 			weight = 1,
 			check = RadioButton(
@@ -1323,7 +1324,7 @@ function defineSettingStyleSink(self,title,mode,data)
 		})
 	elseif mode == "configalarmactive" then
 		menu:addItem({
-			text = tostring(self:string("SCREENSAVER_CUSTOMCLOCK_SETTINGS_NONE")).."\n(Logitech)",
+			text = tostring(self:string("SCREENSAVER_CUSTOMCLOCK_SETTINGS_NONE")).."\n(Lyrion Music Server)",
 			style = 'item_no_icon',
 			weight = 1,
 			check = RadioButton(
@@ -1490,7 +1491,9 @@ end
 
 function _getAppletDir()
 	local appletdir = nil
-	if lfs.attributes("/usr/share/jive/applets") ~= nil then
+	if lfs.attributes("/home/tc/.jivelite/userpath-vis/applets") ~= nil then
+		appletdir = "/home/tc/.jivelite/userpath-vis/applets/"
+	elseif lfs.attributes("/usr/share/jive/applets") ~= nil then
 		appletdir = "/usr/share/jive/applets/"
 	else
 		-- find the applet directory
@@ -1513,7 +1516,9 @@ end
 
 function _getLuaDir()
 	local luadir = nil
-	if lfs.attributes("/usr/share/jive/applets") ~= nil then
+	if lfs.attributes("/opt/jivelite/share/jive/applets") ~= nil then
+		luadir = "/opt/jivelite/share/jive/"
+	elseif lfs.attributes("/usr/share/jive/applets") ~= nil then
 		luadir = "/usr/share/jive/"
 	else
 		-- find the main lua directory
@@ -1533,6 +1538,7 @@ function _getLuaDir()
 	end
 	return luadir
 end
+
 
 function _retrieveFont(self,fonturl,fontfile,fontSize)
 	if fonturl and string.find(fonturl,"^http") then
@@ -1599,7 +1605,7 @@ function _downloadFontZipFile(self, dir)
                                 fh = 'DIR'
                         elseif string.find(filename,"%.ttf") or string.find(filename,"%.TTF") then
                                 log:debug("Extracting font file: " .. filename)
-                                fh = io.open(filename, "w")
+                                fh = io.open(filename, "wb")
 			else
 				log:debug("ignoring file: "..filename)
                         end
@@ -1633,7 +1639,7 @@ function _downloadFontFile(self,dir,filename)
 
                 else
                         if fh == nil then
-	                        fh = io.open(dir .. filename, "w")
+	                        fh = io.open(dir .. filename, "wb")
                         end
 
                         fh:write(chunk)
@@ -1819,7 +1825,7 @@ function _replaceCustomTitleFormats(self,text)
 	return text
 end
 
-function _replaceTitleKeywords(self,_track, text, replaceNonTracks)
+function _replaceTitleKeywords(self,_track, text, replaceNoneTracks)
 	if _track.track then
 		text = string.gsub(text,"(%w+)", function(w) if w=="ARTIST" then return _track.artist else return w end end)
 		text = string.gsub(text,"(%w+)", function(w) if w=="ALBUM" then return _track.album else return w end end)
@@ -1854,6 +1860,8 @@ function _getCoverSize(self,size)
 			return 240
 		elseif self.model == "radio" then
 			return 240
+		elseif self.model == "jivelite800x480" then
+			return 480
 		elseif self.model == "touch" then
 			return 272
 		end
@@ -1864,7 +1872,7 @@ function _updateSDTText(self,widget,id,format,period)
 	local player = appletManager:callService("getCurrentPlayer")
 	period = _getString(period,nil) or "-1" 
 	local server = player:getSlimServer()
-	if not self.sdtMacroChecked and not self:getSettings()['sdtMacroInstalled'] and server and not server:isSqueezeNetwork() then
+	if not self.sdtMacroChecked and not self:getSettings()['sdtMacroInstalled'] and server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -1882,7 +1890,7 @@ function _updateSDTText(self,widget,id,format,period)
 			nil,
 			{'can','sdtMacroString', '?'}
 		)
-	elseif self:getSettings()['sdtMacroInstalled'] and server and not server:isSqueezeNetwork() then
+	elseif self:getSettings()['sdtMacroInstalled'] and server then
 		server:userRequest(
 			function(chunk, err)
 				if err then
@@ -1909,7 +1917,7 @@ function _updateSDTSportItem(self,items)
 	local player = appletManager:callService("getCurrentPlayer")
 	local server = player:getSlimServer()
 
-	if not self.sdtSuperDateTimeChecked and not self:getSettings()['sdtSuperDateTimeInstalled'] and server and not server:isSqueezeNetwork() then
+	if not self.sdtSuperDateTimeChecked and not self:getSettings()['sdtSuperDateTimeInstalled'] and server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -1927,7 +1935,7 @@ function _updateSDTSportItem(self,items)
 			nil,
 			{'can','SuperDateTime', '?'}
 		)
-	elseif self:getSettings()['sdtSuperDateTimeInstalled'] and server and not server:isSqueezeNetwork() then
+	elseif self:getSettings()['sdtSuperDateTimeInstalled'] and server then
 		server:userRequest(
 			function(chunk, err)
 				if err then
@@ -1981,7 +1989,7 @@ function _updateSDTWeatherItem(self,items)
 	local player = appletManager:callService("getCurrentPlayer")
 	local server = player:getSlimServer()
 
-	if not self.sdtSuperDateTimeChecked and not self:getSettings()['sdtSuperDateTimeInstalled'] and server and not server:isSqueezeNetwork() then
+	if not self.sdtSuperDateTimeChecked and not self:getSettings()['sdtSuperDateTimeInstalled'] and server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -1999,7 +2007,7 @@ function _updateSDTWeatherItem(self,items)
 			nil,
 			{'can','SuperDateTime', '?'}
 		)
-	elseif self:getSettings()['sdtSuperDateTimeInstalled'] and server and not server:isSqueezeNetwork() then
+	elseif self:getSettings()['sdtSuperDateTimeInstalled'] and server then
 		server:userRequest(
 			function(chunk, err)
 				if err then
@@ -2036,7 +2044,7 @@ function _updateSDTMiscItem(self,category,items,selectionattribute)
 	local player = appletManager:callService("getCurrentPlayer")
 	local server = player:getSlimServer()
 
-	if not self.sdtSuperDateTimeChecked and not self:getSettings()['sdtSuperDateTimeInstalled'] and server and not server:isSqueezeNetwork() then
+	if not self.sdtSuperDateTimeChecked and not self:getSettings()['sdtSuperDateTimeInstalled'] and server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -2054,7 +2062,7 @@ function _updateSDTMiscItem(self,category,items,selectionattribute)
 			nil,
 			{'can','SuperDateTime', '?'}
 		)
-	elseif self:getSettings()['sdtSuperDateTimeInstalled'] and server and not server:isSqueezeNetwork() then
+	elseif self:getSettings()['sdtSuperDateTimeInstalled'] and server then
 		server:userRequest(
 			function(chunk, err)
 				if err then
@@ -2110,7 +2118,7 @@ function _updatePluginItem(self,category,items)
 	local player = appletManager:callService("getCurrentPlayer")
 	local server = player:getSlimServer()
 
-	if not self.ccPluginItemsChecked and not self:getSettings()['ccPluginItemsInstalled'] and server and not server:isSqueezeNetwork() then
+	if not self.ccPluginItemsChecked and not self:getSettings()['ccPluginItemsInstalled'] and server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -2128,7 +2136,7 @@ function _updatePluginItem(self,category,items)
 			nil,
 			{'can','customclock', 'customitems','?'}
 		)
-	elseif self:getSettings()['ccPluginItemsInstalled'] and server and not server:isSqueezeNetwork() then
+	elseif self:getSettings()['ccPluginItemsInstalled'] and server then
 		server:userRequest(
 			function(chunk, err)
 				if err then
@@ -2284,7 +2292,7 @@ function _updateRSSItem(self,category,items)
 								source = source,
 								title = title,
 								description = description,
-								credot = credit,
+								credit = credit,
 								url = url
 							}
 							index=index+1
@@ -2718,7 +2726,6 @@ function _changeSDTItem(self,category,item,widget,id,dynamic)
 			local player = appletManager:callService("getCurrentPlayer")
 			local server = player:getSlimServer()
 			local url = nil
-			local url = nil
 			if #results>=currentResult+_getNumber(item.offset,0) then
 				if string.find(item.logotype,"orlogoURL$") then
 					url = results[currentResult+_getNumber(item.offset,0)][string.gsub(item.logotype,"orlogoURL$","")]
@@ -3013,7 +3020,7 @@ end
 function _updateSDTWeatherMapIcon(self,widget,id,item)
 	local player = appletManager:callService("getCurrentPlayer")
 	local server = player:getSlimServer()
-	if not self.sdtVersionChecked and not self:getSettings()['sdtVersionInstalled'] and server and not server:isSqueezeNetwork() then
+	if not self.sdtVersionChecked and not self:getSettings()['sdtVersionInstalled'] and server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -3031,7 +3038,7 @@ function _updateSDTWeatherMapIcon(self,widget,id,item)
 			nil,
 			{'can','sdtVersion', '?'}
 		)
-	elseif self:getSettings()['sdtVersionInstalled'] and server and not server:isSqueezeNetwork() then
+	elseif self:getSettings()['sdtVersionInstalled'] and server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -3056,7 +3063,7 @@ end
 function _updateSongInfoIcon(self,widget,id,width,height,module,dynamic,allowproxy)
 	local player = appletManager:callService("getCurrentPlayer")
 	local server = player:getSlimServer()
-	if not self.sdtSongInfoChecked and not self:getSettings()['sdtSongInfoInstalled'] and server and not server:isSqueezeNetwork() then
+	if not self.sdtSongInfoChecked and not self:getSettings()['sdtSongInfoInstalled'] and server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -3074,7 +3081,7 @@ function _updateSongInfoIcon(self,widget,id,width,height,module,dynamic,allowpro
 			nil,
 			{'can','songinfoitems', '?'}
 		)
-	elseif self:getSettings()['sdtSongInfoInstalled'] and _getString(module,nil) and server and not server:isSqueezeNetwork() then
+	elseif self:getSettings()['sdtSongInfoInstalled'] and _getString(module,nil) and server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -3101,7 +3108,7 @@ end
 function _updateGalleryImage(self,widget,id,width,height,favorite)
 	local player = appletManager:callService("getCurrentPlayer")
 	local server = player:getSlimServer()
-	if server and not server:isSqueezeNetwork() then
+	if server then
 		server:userRequest(function(chunk,err)
 				if err then
 					log:warn(err)
@@ -4034,17 +4041,125 @@ function _reDrawAnalog(self,screen)
 	end
 end
 
+function _getLMSInfo(self, mode, transition)
+    local player = appletManager:callService("getCurrentPlayer")
+    local server = player and player.getSlimServer and player:getSlimServer()
+    self.lmsIP, self.lmsPort = server and server.getIpPort and server:getIpPort()
+    self.lmsIP = self.lmsIP or "127.0.0.1"
+    self.lmsPort = tonumber(self.lmsPort) or 9000
+    self.lmsName = server and server.getName and server:getName() or "unknown"
+    self.lmsVersion = server and server.getVersion and server:getVersion() or "unknown"
+	log:debug("LMS IP: " .. tostring(self.lmsIP))
+	log:debug("LMS Port: " .. tostring(self.lmsPort))
+	log:debug("LMS Name: " .. tostring(self.lmsName))
+	log:debug("LMS version: " .. tostring(self.lmsVersion))
+end
+
+local function _chooseProxyExt(srcUrl)
+    local u = (srcUrl or ""):lower()
+    log:debug("_chooseProxyExt: srcUrl=" .. tostring(srcUrl))
+
+    -- Supported extensions by LMS proxy
+    local validExt = {
+        png = true, jpg = true, jpeg = true -- for now we only support png,jpg and jpeg
+    }
+
+    -- Try to extract from the last filename in the path
+    local last = u:match("/([^/?#]+)$") or ""
+    log:debug("_chooseProxyExt: last filename: " .. tostring(last))
+    local ext = last:match("%.([a-zA-Z0-9]+)$")
+    if ext then ext = ext:lower() end
+    log:debug("_chooseProxyExt: after last filename, ext=" .. tostring(ext))
+    if ext and validExt[ext] then
+        log:debug("_chooseProxyExt: returning from last filename: " .. ext)
+        return ext
+    end
+
+    log:debug("_chooseProxyExt: fallback to jpg")
+    return "jpg"
+end
+
+
+local function _buildImageProxyPath(srcUrl, w, h, clipX, clipY, clipWidth, clipHeight, lmsVersion)
+
+    -- Compute once so we can decide whether to use the bucket cache
+    local lmsIsAtLeast910 = false
+    if lmsVersion then
+        local major, minor, patch = tostring(lmsVersion):match("^(%d+)%.(%d+)%.?(%d*)")
+        major = tonumber(major)
+        minor = tonumber(minor)
+        patch = tonumber(patch) or 0
+        if major and minor and (major > 9 or (major == 9 and (minor > 1 or (minor == 1 and patch >= 0)))) then
+            lmsIsAtLeast910 = true
+        end
+    end
+
+    -- Bucket logic
+    local bucket = CB_BUCKET_SECONDS or 10
+    local urlWithBucket = srcUrl
+    if (not lmsIsAtLeast910) and bucket > 0 then
+        local sep = (urlWithBucket:find("%?") and "&") or "?"
+        local ts = math.floor(os.time() / bucket)
+        urlWithBucket = urlWithBucket .. sep .. "cb=" .. ts
+    end
+
+    -- Auto-detect mode
+    local nw = tonumber(w) or 0
+    local nh = tonumber(h) or 0
+    local mode = nil
+    if nw > 0 and nh > 0 then
+        if clipX or clipY or clipWidth or clipHeight then
+            mode = "p" -- pad
+        else
+            mode = "o" -- crop/fill (Resize & crop to fill (cover)) maybe we need to use here "m" Resize to max fit, no pad/crop, needs testing 
+        end
+    end
+
+    -- If neither width nor height is set, use /image (original)
+    local proxypath
+    if nw == 0 and nh == 0 then
+        log:debug("buildImageProxyPath: srcUrl=" .. tostring(urlWithBucket) .. " w=" .. tostring(w) .. " h=" ..
+                      tostring(h) .. " mode=nil (no resize)")
+        proxypath = "/imageproxy/" .. string.urlEncode(urlWithBucket) .. "/image"
+    else
+        local ext = _chooseProxyExt and _chooseProxyExt(srcUrl)
+        local suffix = "/image_" .. tostring(nw) .. "x" .. tostring(nh)
+        if mode then
+            suffix = suffix .. "_" .. mode
+        end
+        log:debug("buildImageProxyPath: srcUrl=" .. tostring(urlWithBucket) .. " w=" .. tostring(w) .. " h=" ..
+                      tostring(h) .. " mode=" .. tostring(mode) .. " ext=" .. tostring(ext))
+        proxypath = "/imageproxy/" .. string.urlEncode(urlWithBucket) .. suffix .. "." .. ext
+    end
+
+    -- Add nocache for LMS >= 9.1.0
+    if lmsIsAtLeast910 then
+        if proxypath:find("%?") then
+            proxypath = proxypath .. "&nocache"
+        else
+            proxypath = proxypath .. "?nocache"
+        end
+    end
+
+    return proxypath
+end
+
+
 function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX,clipY,clipWidth,clipHeight)
 	local imagehost = ""
 	local imageport = tonumber("80")
 	local imagepath = ""
 
-	allowProxy = "false"
+	local lmsIP = self.lmsIP
+	local lmsPort = self.lmsPort
+	local lmsName = self.lmsName
+	local lmsVersion = self.lmsVersion
+
 
 	if not _getString(url,nil) then
 		return
 	end
-	local start,stop,value = string.find(url,"http://([^/]+)")
+	local start,stop,value = string.find(url,"^https?://([^/]+)")
 	if value and value != "" then
 		imagehost = value
 		local start, stop,value = string.find(imagehost,":(.+)$")
@@ -4053,30 +4168,30 @@ function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX
 			imagehost = string.gsub(imagehost,":"..imageport,"")
 		end
 	end
-	start,stop,value = string.find(url,"http://[^/]+(.+)")
+	start,stop,value = string.find(url,"^https?://[^/]+(.+)")
 	if value and value != "" then
 		imagepath = value
 	end
 
 	if imagepath != "" and imagehost != "" then
- 		if allowProxy == "false" or
-			string.find(url, "^http://192%.168") or
-			string.find(url, "^http://172%.16%.") or
-			string.find(url, "^http://10%.") then
-			-- Use direct url
-		else
-                        imagehost = jnt:getSNHostname()
-			imageport = tonumber(80)
-			imagepath = '/public/imageproxy?u=' .. string.urlEncode(url)
-			if width then
-				imagepath = imagepath.."&w="..width
-			end				
-			if height then
-				imagepath = imagepath.."&h="..height
-			end
-			if width or height then
-				imagepath = imagepath.."&m=p"
-			end				
+
+        	local nw, nh    = tonumber(width), tonumber(height)
+        	local isHttp    = (string.find(url, "^http://") ~= nil)
+        	local isHttps   = (string.find(url, "^https://") ~= nil)
+        	local hasAnySize = (nw and nw > 0) or (nh and nh > 0)
+        	local isLMSProxy = (tostring(allowProxy or "false") == "true")
+        	local useLMSProxy = isHttps or (isHttp and hasAnySize and isLMSProxy)
+        	if useLMSProxy then
+            		imagehost  = lmsIP
+            		imageport  = lmsPort
+            		imagepath = _buildImageProxyPath(
+                		url,
+                		(nw and nw > 0) and width  or nil,
+                		(nh and nh > 0) and height or nil,
+                		clipX, clipY, clipWidth, clipHeight) -- maybe implement "?nocache" in lmsimageproxy, then call function additional with last parameter "lmsVersion"
+			
+    		else
+					-- use direct URL
                 end
 		log:debug("Getting image for "..imageType.." from "..imagehost.." and "..imageport.." and "..imagepath)
 		local appletdir = _getAppletDir()
@@ -4100,7 +4215,7 @@ function _retrieveImage(self,url,imageType,allowProxy,dynamic,width,height,clipX
 					if chunk then
 						if _getString(dynamic,"false") == "false" then
 							lfs.mkdir(appletdir.."JLCustomClock/images")
-					                local fh = io.open(appletdir.."JLCustomClock/images/"..cacheName, "w")
+					                local fh = io.open(appletdir.."JLCustomClock/images/"..cacheName, "wb")
 					                fh:write(chunk)
 							fh:close()
 						end
@@ -4188,14 +4303,14 @@ function _imageUpdate(self)
 			for attr,value in pairs(item) do
 				if attr == "url" then
 					if _getString(item.url,nil) then
-						self:_retrieveImage(item.url,self.mode.."item"..no,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
+						self:_retrieveImage(item.url,self.mode.."item"..no,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.width,nil),_getNumber(item.height),_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
 					else
 						self.images[self.mode.."item"..no] = nil
 					end
 				elseif string.find(attr,"^url%.") then
 					local id = string.gsub(attr,"^url%.","")
 					if _getString(value,nil) then
-						self:_retrieveImage(value,self.mode.."item"..no.."."..id,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
+						self:_retrieveImage(value,self.mode.."item"..no.."."..id,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.width,nil),_getNumber(item.height),_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
 					else
 						self.images[self.mode.."item"..no.."."..id] = nil
 					end
@@ -4205,14 +4320,14 @@ function _imageUpdate(self)
 			for attr,value in pairs(item) do
 				if attr == "url" then
 					if _getString(item.url,nil) then
-						self:_retrieveImage(item.url,self.mode.."item"..no,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
+						self:_retrieveImage(item.url,self.mode.."item"..no,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.width,nil),_getNumber(item.height),_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
 					else
 						self.images[self.mode.."item"..no] = nil
 					end
 				elseif string.find(attr,"^url%.") then
 					local id = string.gsub(attr,"^url%.","")
 					if _getString(value,nil) then
-						self:_retrieveImage(value,self.mode.."item"..no.."."..id,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
+						self:_retrieveImage(value,self.mode.."item"..no.."."..id,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.width,nil),_getNumber(item.height),_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
 					else
 						self.images[self.mode.."item"..no.."."..id] = nil
 					end
@@ -4223,7 +4338,7 @@ function _imageUpdate(self)
 				if attr == "url" then
 					self.vumeterimages[self.mode.."item"..no] = no
 					if _getString(item.url,nil) then
-						self:_retrieveImage(item.url,self.mode.."item"..no,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
+						self:_retrieveImage(item.url,self.mode.."item"..no,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.width,nil),_getNumber(item.height),_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
 					else
 						self.images[self.mode.."item"..no] = nil
 					end
@@ -4231,7 +4346,7 @@ function _imageUpdate(self)
 					local id = string.gsub(attr,"^url%.","")
 					self.vumeterimages[self.mode.."item"..no.."."..id] = no
 					if _getString(value,nil) then
-						self:_retrieveImage(value,self.mode.."item"..no.."."..id,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
+						self:_retrieveImage(value,self.mode.."item"..no.."."..id,_getString(item.allowproxy,"true"),item.dynamic,_getNumber(item.width,nil),_getNumber(item.height),_getNumber(item.clipx,nil),_getNumber(item.clipy,nil),_getNumber(item.clipwidth,nil),_getNumber(item.clipheight,nil))
 					else
 						self.images[self.mode.."item"..no.."."..id] = nil
 					end
